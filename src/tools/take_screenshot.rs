@@ -2,6 +2,7 @@ use crate::error::{Error, Result};
 use crate::shared::ScreenshotParams;
 use base64;
 use image::DynamicImage;
+use image::codecs::jpeg::JpegEncoder;
 use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 use log::info;
@@ -53,10 +54,9 @@ pub fn process_image(mut dynamic_image: DynamicImage, params: &ScreenshotParams)
     let mut current_quality = quality;
 
     // Try encoding with JPEG
-    match dynamic_image.write_to(
-        &mut std::io::Cursor::new(&mut output_data),
-        image::ImageOutputFormat::Jpeg(current_quality),
-    ) {
+    match JpegEncoder::new_with_quality(&mut output_data, current_quality)
+        .encode_image(&dynamic_image)
+    {
         Ok(_) => {
             // Reduce quality if needed to meet max size
             while output_data.len() as u64 > max_size_bytes && current_quality > 30 {
@@ -71,10 +71,9 @@ pub fn process_image(mut dynamic_image: DynamicImage, params: &ScreenshotParams)
                 current_quality -= 10;
                 output_data.clear();
 
-                if let Err(e) = dynamic_image.write_to(
-                    &mut std::io::Cursor::new(&mut output_data),
-                    image::ImageOutputFormat::Jpeg(current_quality),
-                ) {
+                if let Err(e) = JpegEncoder::new_with_quality(&mut output_data, current_quality)
+                    .encode_image(&dynamic_image)
+                {
                     return Err(Error::WindowOperationFailed(format!(
                         "Failed to re-encode JPEG: {}",
                         e
@@ -101,10 +100,9 @@ pub fn process_image(mut dynamic_image: DynamicImage, params: &ScreenshotParams)
 
                     // Re-encode with current quality
                     output_data.clear();
-                    if let Err(e) = dynamic_image.write_to(
-                        &mut std::io::Cursor::new(&mut output_data),
-                        image::ImageOutputFormat::Jpeg(current_quality),
-                    ) {
+                    if let Err(e) = JpegEncoder::new_with_quality(&mut output_data, current_quality)
+                        .encode_image(&dynamic_image)
+                    {
                         return Err(Error::WindowOperationFailed(format!(
                             "Failed to encode resized image: {}",
                             e
